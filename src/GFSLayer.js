@@ -1,5 +1,5 @@
 import request from 'superagent'
-import Pbf from 'Pbf'
+import Pbf from 'pbf'
 import geobuf from 'geobuf'
 request.parse['application/x-protobuf'] = (buffer) => new Pbf(buffer)
 import L from 'leaflet'
