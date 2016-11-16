@@ -30,6 +30,8 @@ export default L.GridLayer.extend({
    * rendering to the canvas.
    */
   createTile (coords, done) {
+    // const key = this._tileCoordsToKey(coords)
+    // console.time(`${key} total`)
     const tile = L.DomUtil.create('canvas', 'leaflet-tile')
     const {colorScale} = this.options
     const ctx = tile.getContext('2d')
@@ -43,9 +45,13 @@ export default L.GridLayer.extend({
     const se = nw.add(size)
     const colorMap = {}
 
+    // console.time(`${key} load`)
     this.loadData(coords, (err, data) => {
       if (err) return console.error(err)
+      // console.timeEnd(`${key} load`)
 
+      // console.time(`${key} render total`)
+      // console.time(`${key} colormap`)
       for (let y = nw.y - DOT_SIZE; y < se.y + DOT_SIZE; y += DOT_DENSITY) {
         for (let x = nw.x - DOT_SIZE; x < se.x + DOT_SIZE; x += DOT_DENSITY) {
           let latlng = map.unproject([x, y], coords.z)
@@ -55,28 +61,55 @@ export default L.GridLayer.extend({
           if (colorValues !== null) {
             let [r, g, b] = colorValues
             let color = `rgba(${r}, ${g}, ${b}, 0.02)`
+            let point = [x - nw.x, y - nw.y]
 
-            if (!colorMap[color]) {
-              colorMap[color] = []
-            }
+            ctx.fillStyle = color
+            ctx.beginPath()
+            ctx.arc(
+              point[0] + Math.random() * 3,
+              point[1] + Math.random() * 3,
+              DOT_SIZE,
+              0,
+              Math.PI * 2
+            )
+            ctx.closePath()
+            ctx.fill()
 
-            colorMap[color].push([x - nw.x, y - nw.y])
+            // if (!colorMap[color]) {
+            //   colorMap[color] = []
+            // }
+            //
+            // colorMap[color].push([x - nw.x, y - nw.y])
           }
         }
       }
+      // console.timeEnd(`${key} colormap`)
 
-      Object.keys(colorMap).forEach((color) => {
-        let points = colorMap[color]
-        ctx.fillStyle = color
-        points.forEach((point) => {
-          ctx.beginPath()
-          ctx.arc(point[0] + Math.random() * 3, point[1] + Math.random() * 3, DOT_SIZE, 0, Math.PI * 2)
-          ctx.closePath()
-          ctx.fill()
-        })
-      })
+      // console.time(`${key} render`)
+      // Object.keys(colorMap).forEach((color) => {
+      //   let points = colorMap[color]
+      //   ctx.fillStyle = color
+      //   points.forEach((point) => {
+      //     ctx.beginPath()
+      //     ctx.arc(point[0] + Math.random() * 3, point[1] + Math.random() * 3, DOT_SIZE, 0, Math.PI * 2)
+      //     ctx.closePath()
+      //     ctx.fill()
+      //   })
+      // })
+      // console.timeEnd(`${key} render`)
+      // console.timeEnd(`${key} render total`)
+
+      // ctx.fillStyle = `rgba(${Math.round(Math.random()*255)}, ${Math.round(Math.random()*255)}, ${Math.round(Math.random()*255)}, 1)`
+      // data.forEach(([lat, lng]) => {
+      //   let point = map.project([lat, lng], coords.z)
+      //   ctx.beginPath()
+      //   ctx.arc(point.x - nw.x, point.y - nw.y, 5, 0, Math.PI * 2)
+      //   ctx.closePath()
+      //   ctx.fill()
+      // })
 
       done(null, tile)
+      // console.timeEnd(`${key} total`)
     })
 
     return tile
@@ -86,34 +119,69 @@ export default L.GridLayer.extend({
    * Loads data for a given tile.
    */
   loadData (tile, cb) {
-    const map = this._map
-    const size = this.getTileSize()
-    const nwPx = tile.scaleBy(size).subtract([DOT_SIZE * 2, DOT_SIZE * 2])
-    const sePx = nwPx.add(size).add([DOT_SIZE * 4, DOT_SIZE * 4])
-    const nw = map.unproject(nwPx, tile.z)
-    const se = map.unproject(sePx, tile.z)
-    const bounds = [
-      Math.ceil(nw.lat) + 2,
-      Math.floor(nw.lng) - 2,
-      Math.floor(se.lat) - 2,
-      Math.ceil(se.lng) + 2
-    ]
-    const time = this.getCurrentDate().getTime()
+    const key = this._tileCoordsToKey(tile)
+    // console.log(`tile ${tile.x}:${tile.y}@${tile.z}`)
 
+    let map = this._map
+    let size = this.getTileSize()
+    let nwPx = tile.scaleBy(size)
+    let sePx = nwPx.add(size)
+
+    // console.log(`px bounds ${nwPx.x}:${nwPx.y} - ${sePx.x}:${sePx.y}`)
+
+    nwPx = nwPx.subtract([DOT_SIZE, DOT_SIZE])
+    sePx = sePx.add([DOT_SIZE, DOT_SIZE])
+
+    // console.log(`px bounds ${nwPx.x}:${nwPx.y} - ${sePx.x}:${sePx.y}`)
+    // nwPx.subtract([DOT_SIZE * 2, DOT_SIZE * 2])
+    // sePx.add([DOT_SIZE * 4, DOT_SIZE * 4])
+
+    let nw = map.unproject(nwPx, tile.z)
+    let se = map.unproject(sePx, tile.z)
+
+    // console.log(`geo bounds ${nw.lng}:${nw.lat} - ${se.lng}:${se.lat}`)
+
+    let resolution = Math.max(1, (6 - tile.z) * 2)
+    let nwLat = nw.lat + resolution - nw.lat % resolution
+    let nwLng = nw.lng - resolution - nw.lng % resolution
+    let seLat = se.lat - resolution - se.lat % resolution
+    let seLng = se.lng + resolution - se.lng % resolution
+
+    if (Math.abs(seLng - nwLng) >= 360) {
+      nwLng = -180
+      seLng = 180 - resolution
+    }
+
+    let bounds = [nwLng, Math.min(90, nwLat), seLng, Math.max(-90, seLat)]
+
+    // console.log('bounds', bounds)
+    let time = this.getCurrentDate().getTime()
+    // console.time(`${key} io`)
     request
     .get(`${this.options.baseUrl}/layer/${this.options.type}/${time}`)
-    .query({bb: bounds.join(',')})
+    .query({bb: bounds.join(','), sf: resolution})
     .responseType('arraybuffer')
     .end((err, res) => {
       if (err) return cb(err)
+      // console.timeEnd(`${key} io`)
+      // console.time(`${key} parse`)
       let points = geobuf.decode(res.body)
+      let grid = points.features.shift()
+      let {dx, dy, bounds} = grid.properties
       let field
+      // console.timeEnd(`${key} parse`)
 
+      // console.log(`${nw.lng}:${nw.lat} - ${se.lng}:${se.lat}`)
+
+      // console.time(`${key} parse=>prepare`)
       if (this.options.type === 'uvgrd') {
-        field = VectorField.fromFeatures(bounds, 1, 1, points.features)
+        field = new VectorField(bounds, dx, dy, points.features)
       } else {
-        field = ValueField.fromFeatures(bounds, 1, 1, points.features)
+        field = new ValueField(bounds, dx, dy, points.features)
       }
+      // console.timeEnd(`${key} parse=>prepare`)
+
+      // console.log(field)
 
       cb(null, field)
     })

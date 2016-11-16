@@ -9,8 +9,8 @@ export default class VectorField extends ValueField {
   }
 }
 
-VectorField.fromFeatures = function (bounds, dx, dy, features) {
-  return ValueField.fromFeatures(bounds, dx, dy, features, (bounds, dx, dy, field) => {
-    return new VectorField(bounds, dx, dy, field)
-  })
-}
+// VectorField.fromFeatures = function (bounds, dx, dy, features) {
+//   return ValueField.fromFeatures(bounds, dx, dy, features, (bounds, dx, dy, field) => {
+//     return new VectorField(bounds, dx, dy, field)
+//   })
+// }

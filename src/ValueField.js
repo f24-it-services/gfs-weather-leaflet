@@ -1,48 +1,70 @@
 export default class ValueField {
-  constructor (bounds, dlat, dlng, field) {
-    this.bounds = bounds
-    this.dlat = dlat
+  constructor (bounds, dlng, dlat, features) {
     this.dlng = dlng
-    this.field = field
+    this.dlat = dlat
+    this.tlng = this.__unwrapLng(bounds[0])
+    this.tlat = this.__unwrapLat(bounds[1])
+    this.nx = this.__x(this.__unwrapLng(bounds[2])) + 1
+    this.ny = this.__y(this.__unwrapLat(bounds[3])) + 1
+    // console.log(`${bounds[0]}:${bounds[1]}-${bounds[2]}:${bounds[3]} => ${this.tlng}:${this.tlat} + ${this.nx}:${this.ny}`)
+
+    this.data = new Array(features.length)
+
+    features.forEach((f) => {
+      let lnglat = f.geometry.coordinates
+      let value = f.properties.value
+      let lng = this.__unwrapLng(lnglat[0])
+      let lat = this.__unwrapLat(lnglat[1])
+      let x = this.__x(lng)
+      let y = this.__y(lat)
+      let i = this.__i(x, y)
+
+      this.data[i] = value
+    })
   }
 
-  get (latlng) {
-    let yf = (this.bounds[0] - latlng[0]) / this.dlat
-    let xf = (latlng[1] - this.bounds[1]) / this.dlng
-    let y = Math.floor(yf)
+  __unwrapLng (lng) {
+    return (lng % 360 + 180) % 360
+  }
+
+  __unwrapLat (lat) {
+    return 90 - lat
+  }
+
+  __x (lng) {
+    let x = lng - this.tlng
+    // If bounds cross the date line we need to componsate by adding 360deg
+    return (x < 0 ? x + 360 : x) / this.dlng
+  }
+
+  __y (lat) {
+    return (lat - this.tlat) / this.dlat
+  }
+
+  __i (x, y) {
+    return y * this.nx + x
+  }
+
+  __get (x, y) {
+    return this.data[this.__i(x, y)]
+  }
+
+  get ([lat, lng]) {
+    let xf = this.__x(this.__unwrapLng(lng))
+    let yf = this.__y(this.__unwrapLat(lat))
     let x = Math.floor(xf)
-    let yc = y + 1
-    let xc = x + 1
+    let y = Math.floor(yf)
 
-    let tr = this.field[y]
-    let br = this.field[yc]
-
-    if (!tr || !br) {
-      return null
-    }
-
-    let g00 = tr[x] && tr[x][1]
-    let g10 = tr[xc] && tr[xc][1]
-    let g01 = br[x] && br[x][1]
-    let g11 = br[xc] && br[xc][1]
+    let g00 = this.__get(x, y)
+    let g10 = this.__get(x + 1, y)
+    let g01 = this.__get(x, y + 1)
+    let g11 = this.__get(x + 1, y + 1)
 
     if (!g00 || !g10 || !g01 || !g11) {
       return null
     }
 
     return this.interpolate(xf - x, yf - y, g00, g10, g01, g11)
-  }
-
-  forEach (cb) {
-    const field = this.field
-    for (let y = 0, yl = field.length; y < yl; y++) { // eslint-disable-line
-      let row = field[y]
-      if (!row) continue
-      for (let x = 0, xl = row.length; x < xl; x++) {  // eslint-disable-line
-        let v = row[x]
-        if (v) cb(v[0], v[1])
-      }
-    }
   }
 
   interpolate (x, y, g00, g10, g01, g11) {
@@ -62,26 +84,26 @@ export default class ValueField {
   }
 }
 
-ValueField.fromFeatures = function (bounds, dlat, dlng, features, factoryFn) {
-  const field = []
-
-  features.forEach((feature) => {
-    let lnglat = feature.geometry.coordinates
-    let latlng = [lnglat[1], lnglat[0]]
-    let value = feature.properties.value
-    let y = Math.floor((bounds[0] - latlng[0]) / dlat)
-    let x = Math.floor((latlng[1] - bounds[1]) / dlng)
-
-    if (!field[y]) {
-      field[y] = []
-    }
-
-    field[y][x] = [latlng, value]
-  })
-
-  if (factoryFn) {
-    return factoryFn(bounds, dlat, dlng, field)
-  }
-
-  return new ValueField(bounds, dlat, dlng, field)
-}
+// ValueField.fromFeatures = function (bounds, dlat, dlng, features, factoryFn) {
+//   const field = []
+//
+//   features.forEach((feature) => {
+//     let lnglat = feature.geometry.coordinates
+//     let latlng = [lnglat[1], lnglat[0]]
+//     let value = feature.properties.value
+//     let y = Math.floor((bounds[0] - latlng[0]) / dlat)
+//     let x = Math.floor((latlng[1] - bounds[1]) / dlng)
+//
+//     if (!field[y]) {
+//       field[y] = []
+//     }
+//
+//     field[y][x] = [latlng, value]
+//   })
+//
+//   if (factoryFn) {
+//     return factoryFn(bounds, dlat, dlng, field)
+//   }
+//
+//   return new ValueField(bounds, dlat, dlng, field)
+// }
