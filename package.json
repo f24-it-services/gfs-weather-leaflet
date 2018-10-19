@@ -1,13 +1,16 @@
 {
   "name": "gfs-weather-leaflet",
   "version": "1.1.1",
-  "description": "",
+  "description": "Leaflet layer for rendering data from gfs-weather-server on leaflet maps",
   "license": "MIT",
   "author": "",
   "main": "lib/index.js",
   "scripts": {
+    "all": "npm-run-all clean lint dist",
+    "clean": "rimraf lib",
     "dist": "babel src --out-dir lib",
-    "prepublishOnly": "npm run dist",
+    "lint": "eslint --fix '**/*.js'",
+    "prepublishOnly": "npm run all",
     "watch": "npm run dist -- --watch"
   },
   "babel": {
@@ -26,9 +29,13 @@
     "babel-core": "^6.26.3",
     "babel-eslint": "^10.0.1",
     "babel-preset-env": "^1.7.0",
-    "eslint": "^5.6.1",
+    "eslint": "^5.2.0",
     "eslint-config-standard": "^12.0.0",
+    "eslint-plugin-import": "^2.14.0",
+    "eslint-plugin-node": "^7.0.1",
     "eslint-plugin-promise": "^4.0.1",
-    "eslint-plugin-standard": "^4.0.0"
+    "eslint-plugin-standard": "^4.0.0",
+    "npm-run-all": "^4.1.3",
+    "rimraf": "^2.6.2"
   }
 }

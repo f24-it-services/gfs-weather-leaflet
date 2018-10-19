@@ -1,7 +1,6 @@
 import request from 'superagent'
 import Pbf from 'pbf'
 import geobuf from 'geobuf'
-request.parse['application/x-protobuf'] = (buffer) => new Pbf(buffer)
 import L from 'leaflet'
 
 import VectorField from './VectorField'
@@ -33,7 +32,7 @@ export default L.GridLayer.extend({
     // const key = this._tileCoordsToKey(coords)
     // console.time(`${key} total`)
     const tile = L.DomUtil.create('canvas', 'leaflet-tile')
-    const {colorScale} = this.options
+    const { colorScale } = this.options
     const ctx = tile.getContext('2d')
     const size = this.getTileSize()
     const map = this._map
@@ -43,7 +42,7 @@ export default L.GridLayer.extend({
 
     const nw = coords.scaleBy(size)
     const se = nw.add(size)
-    const colorMap = {}
+    // const colorMap = {}
 
     // console.time(`${key} load`)
     this.loadData(coords, (err, data) => {
@@ -54,14 +53,14 @@ export default L.GridLayer.extend({
       // console.time(`${key} colormap`)
       for (let y = nw.y - DOT_SIZE; y < se.y + DOT_SIZE; y += DOT_DENSITY) {
         for (let x = nw.x - DOT_SIZE; x < se.x + DOT_SIZE; x += DOT_DENSITY) {
-          let latlng = map.unproject([x, y], coords.z)
-          let value = data.get([latlng.lat, latlng.lng])
+          const latlng = map.unproject([x, y], coords.z)
+          const value = data.get([latlng.lat, latlng.lng])
 
-          let colorValues = colorScale.getColor(value)
+          const colorValues = colorScale.getColor(value)
           if (colorValues !== null) {
-            let [r, g, b] = colorValues
-            let color = `rgba(${r}, ${g}, ${b}, 0.02)`
-            let point = [x - nw.x, y - nw.y]
+            const [r, g, b] = colorValues
+            const color = `rgba(${r}, ${g}, ${b}, 0.02)`
+            const point = [x - nw.x, y - nw.y]
 
             ctx.fillStyle = color
             ctx.beginPath()
@@ -87,7 +86,7 @@ export default L.GridLayer.extend({
 
       // console.time(`${key} render`)
       // Object.keys(colorMap).forEach((color) => {
-      //   let points = colorMap[color]
+      //   const points = colorMap[color]
       //   ctx.fillStyle = color
       //   points.forEach((point) => {
       //     ctx.beginPath()
@@ -101,7 +100,7 @@ export default L.GridLayer.extend({
 
       // ctx.fillStyle = `rgba(${Math.round(Math.random()*255)}, ${Math.round(Math.random()*255)}, ${Math.round(Math.random()*255)}, 1)`
       // data.forEach(([lat, lng]) => {
-      //   let point = map.project([lat, lng], coords.z)
+      //   const point = map.project([lat, lng], coords.z)
       //   ctx.beginPath()
       //   ctx.arc(point.x - nw.x, point.y - nw.y, 5, 0, Math.PI * 2)
       //   ctx.closePath()
@@ -119,11 +118,11 @@ export default L.GridLayer.extend({
    * Loads data for a given tile.
    */
   loadData (tile, cb) {
-    const key = this._tileCoordsToKey(tile)
+    // const letkey = this._tileCoordsToKey(tile)
     // console.log(`tile ${tile.x}:${tile.y}@${tile.z}`)
 
-    let map = this._map
-    let size = this.getTileSize()
+    const map = this._map
+    const size = this.getTileSize()
     let nwPx = tile.scaleBy(size)
     let sePx = nwPx.add(size)
 
@@ -136,15 +135,15 @@ export default L.GridLayer.extend({
     // nwPx.subtract([DOT_SIZE * 2, DOT_SIZE * 2])
     // sePx.add([DOT_SIZE * 4, DOT_SIZE * 4])
 
-    let nw = map.unproject(nwPx, tile.z)
-    let se = map.unproject(sePx, tile.z)
+    const nw = map.unproject(nwPx, tile.z)
+    const se = map.unproject(sePx, tile.z)
 
     // console.log(`geo bounds ${nw.lng}:${nw.lat} - ${se.lng}:${se.lat}`)
 
-    let resolution = Math.max(1, (6 - tile.z) * 2)
-    let nwLat = nw.lat + resolution - nw.lat % resolution
+    const resolution = Math.max(1, (6 - tile.z) * 2)
+    const nwLat = nw.lat + resolution - nw.lat % resolution
     let nwLng = nw.lng - resolution - nw.lng % resolution
-    let seLat = se.lat - resolution - se.lat % resolution
+    const seLat = se.lat - resolution - se.lat % resolution
     let seLng = se.lng + resolution - se.lng % resolution
 
     if (Math.abs(seLng - nwLng) >= 360) {
@@ -152,39 +151,42 @@ export default L.GridLayer.extend({
       seLng = 180 - resolution
     }
 
-    let bounds = [nwLng, Math.min(90, nwLat), seLng, Math.max(-90, seLat)]
+    const bounds = [nwLng, Math.min(90, nwLat), seLng, Math.max(-90, seLat)]
 
     // console.log('bounds', bounds)
-    let time = this.getCurrentDate().getTime()
+    const time = this.getCurrentDate().getTime()
     // console.time(`${key} io`)
     request
-    .get(`${this.options.baseUrl}/layer/${this.options.type}/${time}`)
-    .query({bb: bounds.join(','), sf: resolution})
-    .responseType('arraybuffer')
-    .end((err, res) => {
-      if (err) return cb(err)
-      // console.timeEnd(`${key} io`)
-      // console.time(`${key} parse`)
-      let points = geobuf.decode(res.body)
-      let grid = points.features.shift()
-      let {dx, dy, bounds} = grid.properties
-      let field
-      // console.timeEnd(`${key} parse`)
+      .get(`${this.options.baseUrl}/layer/${this.options.type}/${time}`)
+      .query({ bb: bounds.join(','), sf: resolution })
+      .responseType('arraybuffer')
+      .end((err, res) => {
+        if (err) return cb(err)
+        // console.timeEnd(`${key} io`)
+        // console.time(`${key} parse`)
 
-      // console.log(`${nw.lng}:${nw.lat} - ${se.lng}:${se.lat}`)
+        const buf = parseXProtobuf(res)
+        if (!buf || !buf.buf || !buf.buf.length) return
+        const points = geobuf.decode(buf)
+        const grid = points.features.shift()
+        const { dx, dy, bounds } = grid.properties
+        let field
+        // console.timeEnd(`${key} parse`)
 
-      // console.time(`${key} parse=>prepare`)
-      if (this.options.type === 'uvgrd') {
-        field = new VectorField(bounds, dx, dy, points.features)
-      } else {
-        field = new ValueField(bounds, dx, dy, points.features)
-      }
-      // console.timeEnd(`${key} parse=>prepare`)
+        // console.log(`${nw.lng}:${nw.lat} - ${se.lng}:${se.lat}`)
 
-      // console.log(field)
+        // console.time(`${key} parse=>prepare`)
+        if (this.options.type === 'uvgrd') {
+          field = new VectorField(bounds, dx, dy, points.features)
+        } else {
+          field = new ValueField(bounds, dx, dy, points.features)
+        }
+        // console.timeEnd(`${key} parse=>prepare`)
 
-      cb(null, field)
-    })
+        // console.log(field)
+
+        cb(null, field)
+      })
   },
 
   /**
@@ -202,3 +204,9 @@ export default L.GridLayer.extend({
     if (this._map) this.redraw()
   }
 })
+
+function parseXProtobuf (res) {
+  if (res.headers['content-type'] === 'application/x-protobuf') {
+    return new Pbf(res.body)
+  }
+}
