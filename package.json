@@ -1,6 +1,6 @@
 {
   "name": "gfs-weather-leaflet",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Leaflet layer for rendering data from gfs-weather-server on leaflet maps",
   "license": "MIT",
   "author": "",
